@@ -1,0 +1,59 @@
+# =====================================================
+# ICA10 - MiniShell
+# Git ignore rules for C projects and scripts
+# =====================================================
+
+# Compiled binaries
+envinspect
+cmdrun
+out.txt
+report.txt
+
+# Object files and static libraries
+*.o
+*.a
+*.so
+
+# Build and test artifacts
+*.log
+*.out
+*.err
+*.tmp
+*.swp
+*.swo
+*.core
+core
+
+# Backup files (editors)
+*~
+*.bak
+*.old
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux/WSL metadata
+.Trash-*
+.fuse_hidden*
+
+# VS Code / JetBrains / IDE settings
+.vscode/
+.idea/
+*.code-workspace
+
+# Docker / container cache
+*.tar
+.cache/
+.env
+
+# =====================================================
+# Keep essential files
+# =====================================================
+!Makefile
+!README.md
+!test.sh
+!*.c
+!*.h
+!*.sh

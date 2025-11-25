@@ -41,7 +41,8 @@ int main(void)
                 free(argv[i]);
             free(argv);
         }
-        free(out_path);
+        if (out_path)
+            free(out_path);
 
         printf("cmd> ");
     }

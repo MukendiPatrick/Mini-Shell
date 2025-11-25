@@ -1,86 +1,108 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/EoYkuVCX)
-# ICA10-MiniShell
+# MiniShell
 
-In this assignment, you’ll build small tools that expose how Linux runs programs: a process/environment inspector in C, a tiny command runner that uses `fork()`/`exec()` and I/O redirection, and a short shell script. You will complete this work in a Linux environment (lab VM, WSL2, or Docker), so that the correct system calls and behavior are available.
+MiniShell is a personal project, built to explore how Linux manages processes, environment variables, and command execution. It consists of small C programs and a Bash script that demonstrate process creation, command execution, and output redirection, similar to how a minimal shell works. This project helped me understand how shells interact with the OS at a low level.
 
-You’ll be given simple drivers and tests. Your job is to implement the required C functions and script so the tests pass and you learn how shells interact with the OS.
+---
 
-## Linux Environment
+## Table of Contents
 
-You must run this assignment on Linux:
+- [Project Overview](#project-overview)
+- [Linux Environment Setup](#linux-environment-setup)
+- [Project Features](#project-features)
+- [Processes, Exec, and Redirection](#processes-exec-and-redirection)
+- [Implementation Details](#implementation-details)
+  - [envinspect.c](#envinspectc)
+  - [cmdrun.c](#cmdrunc)
+  - [system_report.sh](#system_reportsh)
+- [Project Files](#project-files)
+- [Building and Testing](#building-and-testing)
+- [Example Usage](#example-usage)
 
-### Windows + WSL2
+---
 
-1. Install WSL and Ubuntu from Microsoft Store.
-2. In Ubuntu:
+## Project Overview
+
+MiniShell is a hands-on project for learning core Linux programming concepts:
+
+- Understanding processes, PIDs, and parent-child relationships.
+- Accessing environment variables from C programs.
+- Executing commands from a minimal shell prompt with optional output redirection.
+- Writing Bash scripts that summarize system information and redirect output.
+
+This project simulates basic shell behavior and demonstrates how programs interact with the Linux OS.
+
+---
+
+## Linux Environment Setup
+
+MiniShell runs on Linux. Recommended setups:
+
+**Windows + WSL2**
 
 ```bash
 sudo apt update
 sudo apt install -y build-essential
-```
+gcc --version
 
-### macOS/Chromebook + Docker
-
-1. Install Docker Desktop.
-2. Start a container and install tools:
+**macOS/Chromebook + Docker**
 
 ```bash
 docker run -it --name minishell -v "$PWD":/hw -w /hw ubuntu bash
 apt update && apt install -y build-essential bash
+gcc --version
 ```
 
-To double check your installation is correct, `gcc --version` prints a version number.
+---
 
-## To Do
+## Project Features
 
-You will implement three small deliverables:
+* **Process and environment inspection:** View PIDs, PPIDs, and environment variables.
+* **Minimal command runner:** Parse and execute commands with optional `>` output redirection.
+* **System reporting script:** Quickly summarize system info and processes for the current user.
 
-* `envinspect.c` (C): print process IDs and key environment variables; demonstrate `fork()`.
-* `cmdrun.c` (C): read a command line, optionally handle `>` output redirection, create a child with `fork()`, and execute with `execvp()`.
-* `system_report.sh` (Bash): a tiny script that prints a system summary and demonstrates redirection/vars.
+---
 
-## Processes, Exec, Redirection
+## Processes, Exec, and Redirection
 
-A **process** is a running program with its own address space and environment. When a process calls `fork()`, the OS creates a child process that is (nearly) a copy of the parent. The child can then replace its image with a new program using the `exec*` family (e.g., `execvp()`), inheriting open file descriptors and environment variables.
+* **Processes:** Each running program has its own memory and environment.
+* **fork():** Creates a nearly identical child process.
+* **execvp():** Replaces a process image with a new program.
+* **I/O Redirection:** Redirect `stdout` to a file using `dup2()` (e.g., `command > file.txt`).
 
-**I/O redirection** (e.g., `>`): shells open the target file, duplicate the file descriptor onto standard streams using `dup2()`, then run the program. Your `cmdrun.c` will implement the essential pieces of this behavior.
+**Example command with redirection:**
 
-### Example
-
-If the user enters:
-
-```shell
+```bash
 cmd> ls -l > out.txt
 ```
 
-Your program should detect `> out.txt`, redirect the child’s `stdout` to `out.txt`, and then run `ls -l` in that child. The parent waits for completion.
-
-## Implementation
-
-### `envinspect.c`
-
-In `envinspect.c`, you will implement two functions.
-The first, `print_env_info()`, prints the process’s PID and PPID along with the `USER`, `HOME`, and `PATH` environment variables using `getpid()`, `getppid()`, and `getenv()`.
-The second, `spawn_and_report()`, demonstrates process creation using `fork()`. The parent process should print:
-`I am the parent. My PID is <P> and my child is <C>.`
-and the child should print:
-`I am the child. My PID is <C> and my parent is <P>.`
-The parent must wait for the child with `waitpid()` before exiting. Return `0` on success and a nonzero value on error.
+* The output of `ls -l` is written to `out.txt`.
+* The parent process waits for the child process to finish.
 
 ---
 
-### `cmdrun.c`
+## Implementation Details
 
-In `cmdrun.c`, you will build a minimal command runner that parses and executes user input.
-`parse_command()` splits a command line into an argument vector for `execvp()` and detects an optional output redirection (`>`). It supports one redirection of the form `command > filename`, ignores extra spaces, and does not handle piping or input redirection. On success, it should allocate a NULL-terminated `argv` array and return `0`. On error (e.g., missing filename after `>`), return nonzero.
+### envinspect.c
 
-`run_command()` uses `fork()` and `execvp()` to execute the parsed command. If an output file is given, open it with `open(out_path, O_CREAT|O_WRONLY|O_TRUNC, 0644)` and redirect output with `dup2(fd, STDOUT_FILENO)`. The parent waits using `waitpid()` and returns the child’s exit status. Print errors with `perror()` and return nonzero on failure.
+* **print_env_info():** Prints the current process PID, parent PID, and key environment variables: `USER`, `HOME`, `PATH`.
+* **spawn_and_report():** Demonstrates `fork()`.
 
----
+  * Parent prints: `I am the parent. My PID is <P> and my child is <C>.`
+  * Child prints: `I am the child. My PID is <C> and my parent is <P>.`
+  * Parent waits for the child to finish using `waitpid()`.
 
-### `system_report.sh`
+### cmdrun.c
 
-In `system_report.sh`, write a simple Bash script that prints a short system summary. It should display the current user, date/time, and the number of running processes owned by that user. The output should match the format below and can be redirected into a file (e.g., `bash system_report.sh > report.txt`):
+* **parse_command():** Splits a command line into arguments (`argv`) for `execvp()`, detects optional output redirection (`>`). Handles one redirection, ignores extra spaces, and does not support piping or input redirection.
+* **run_command():** Executes the parsed command using `fork()` + `execvp()`.
+
+  * If output redirection is specified, opens the file using `open(out_path, O_CREAT|O_WRONLY|O_TRUNC, 0644)` and duplicates the file descriptor to `STDOUT_FILENO` using `dup2()`.
+  * The parent waits for the child and returns the exit status.
+  * Prints errors using `perror()`.
+
+### system_report.sh
+
+* Bash script to print a simple system summary:
 
 ```bash
 #!/bin/bash
@@ -89,58 +111,78 @@ date
 echo "Processes running: $(ps -u "$USER" | wc -l)"
 ```
 
-Remember to make the script executable with `chmod +x system_report.sh`.
+* Make it executable:
 
-## Files
+```bash
+chmod +x system_report.sh
+```
 
-* `envinspect.c` – Implement `print_env_info()` and `spawn_and_report()`.
-* `cmdrun.c` – Implement `parse_command()` and `run_command()`.
-* `system_report.sh` – Bash script as described (remember `chmod +x`).
-* `main_env.c` – Driver for envinspect (don’t modify).
-* `main_cmd.c` – Driver for cmdrun (don’t modify).
-* `cardinal.h` – Shared prototypes and small helpers (don’t modify).
-* `Makefile` – Build targets `envinspect`, `cmdrun`, and `all`.
-* `test.sh` – Script to validate output/behavior.
-* `README.md` – This file.
+---
 
-(Your course repo includes `main_env.c`, `main_cmd.c`, `cardinal.h`, `Makefile`, and `test.sh`.)
+## Project Files
 
-## Testing
+* `envinspect.c` – Implements process and environment inspection.
+* `cmdrun.c` – Implements the minimal command runner.
+* `system_report.sh` – Bash script for system summary.
+* `main_env.c` – Driver program for envinspect.
+* `main_cmd.c` – Driver program for cmdrun.
+* `cardinal.h` – Shared function prototypes and small helpers.
+* `Makefile` – Build targets for `envinspect`, `cmdrun`, and `all`.
+* `test.sh` – Script to validate program functionality.
 
-Your implementation will be run against `test.sh`. To complete this assignment, you must pass all test sections:
+---
 
-* Section 1: tests `print_env_info()`
-* Section 2: tests `spawn_and_report()`
-* Section 3: tests `parse_command()` and `run_command()` (normal run)
-* Section 4: tests `run_command()` with `>` redirection
-* Section 5: tests `system_report.sh`
+## Building and Testing
 
-To compile:
+**Compile the programs:**
 
-```shell
+```bash
 make
 ```
 
-To run the tests:
+**Run the test script:**
 
-```shell
+```bash
 make test
 ```
 
-You can also run the drivers directly:
+**Run the programs directly:**
 
-```shell
-./envinspect             # runs env inspector demo
-./cmdrun                 # launches the command prompt 'cmd>'
-bash system_report.sh    # prints to stdout; try: bash system_report.sh > report.txt
+```bash
+./envinspect             # Run environment inspector demo
+./cmdrun                 # Launch the minimal shell prompt 'cmd>'
+bash system_report.sh    # Print system report
+bash system_report.sh > report.txt  # Save report to a file
 ```
 
-## Hints
+---
 
-* Work one function at a time. Verify with small manual tests before running `make test`.
-* Useful headers:
-  `#include <stdio.h>`, `<stdlib.h>`, `<string.h>`, `<unistd.h>`, `<sys/types.h>`, `<sys/wait.h>`, `<fcntl.h>`, `<errno.h>`
-* Tokenizing input: `strtok()` (or `strtok_r()`); be careful to preserve the filename after `>`.
-* Allocating `argv`: count tokens first, then `malloc` a `char*` array sized `count+1`, ending with `NULL`.
-* Redirection: open the file, `dup2(fd, STDOUT_FILENO)`, then close the original `fd`.
-* In C, strings are char arrays ending with `'\0'`. Always terminate `argv` with `NULL` for `execvp()`.
+## Example Usage
+
+**envinspect.c output:**
+
+```bash
+$ ./envinspect
+Process Info:
+PID: 1234
+PPID: 1233
+USER: user
+HOME: /home/user
+PATH: /usr/local/bin:/usr/bin:/bin
+```
+
+**cmdrun.c with output redirection:**
+
+```bash
+cmd> ls -l > files.txt
+# Output of ls is written to files.txt
+```
+
+**system_report.sh output:**
+
+```bash
+$ bash system_report.sh
+System Report for user
+Mon Nov 25 14:32:00 UTC 2025
+Processes running: 7
+```
